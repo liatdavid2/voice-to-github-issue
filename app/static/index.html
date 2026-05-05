@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice to GitHub Issue</title>
+  <style>
+    :root {
+      --bg: #f4f4f4;
+      --card: #ffffff;
+      --text: #161616;
+      --muted: #525252;
+      --border: #e0e0e0;
+      --primary: #0f62fe;
+      --primary-hover: #0353e9;
+      --danger: #da1e28;
+      --success: #198038;
+      --disabled: #c6c6c6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 32px 18px 56px;
+    }
+
+    .header {
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 22px;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    @media (max-width: 760px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-weight: 700;
+    }
+
+    select,
+    input,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+      min-width: 160px;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    button.secondary {
+      background: #393939;
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    button:disabled {
+      background: var(--disabled);
+      cursor: not-allowed;
+      color: #6f6f6f;
+    }
+
+    .status {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #edf5ff;
+      color: #0043ce;
+      display: none;
+      white-space: pre-wrap;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .status.error {
+      background: #fff1f1;
+      color: var(--danger);
+    }
+
+    .status.success {
+      background: #defbe6;
+      color: var(--success);
+    }
+
+    .repo-box {
+      padding: 12px;
+      background: #f4f4f4;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .step-title {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f62fe;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    a {
+      color: var(--primary);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="header">
+      <h1>Voice to GitHub Issue</h1>
+      <p>Choose Hebrew or English, record a developer request, review the generated English issue, and create it in one fixed GitHub repository.</p>
+    </section>
+
+    <section class="card" id="languageCard">
+      <span class="step-title">Step 1</span>
+      <h2>Choose input language</h2>
+      <p>This controls transcription only. The GitHub issue is always generated in English.</p>
+
+      <label for="language">Language</label>
+      <select id="language">
+        <option value="he">Hebrew</option>
+        <option value="en">English</option>
+      </select>
+
+      <div class="button-row">
+        <button id="continueButton">Continue</button>
+      </div>
+    </section>
+
+    <section class="card hidden" id="recordCard">
+      <span class="step-title">Step 2</span>
+      <h2>Record request</h2>
+
+      <div class="grid">
+        <div>
+          <label>Target repository</label>
+          <div class="repo-box" id="repoBox">Loading repository...</div>
+          <p class="small">All issues are created in this repository from the .env file. There is no repository selection in the UI.</p>
+        </div>
+
+        <div>
+          <label for="assignee">Assignee</label>
+          <select id="assignee"></select>
+          <p class="small">Assignee must have access to the repository. Otherwise GitHub may reject or ignore it.</p>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button id="recordButton">Start recording</button>
+        <button id="stopButton" class="danger" disabled>Stop recording</button>
+        <button id="previewButton" class="secondary" disabled>Preview issue</button>
+      </div>
+
+      <label for="audioFile">Optional audio upload instead of recording</label>
+      <input id="audioFile" type="file" accept="audio/*" />
+
+      <div class="status show" id="recordingStatus">Ready</div>
+    </section>
+
+    <section class="card hidden" id="previewCard">
+      <span class="step-title">Step 3</span>
+      <h2>Review before creating</h2>
+      <p>You can edit title, body, and labels before creating the GitHub issue.</p>
+
+      <label for="transcript">Transcript</label>
+      <textarea id="transcript" readonly></textarea>
+
+      <label for="title">Issue title</label>
+      <input id="title" />
+
+      <label for="body">Issue body</label>
+      <textarea id="body"></textarea>
+
+      <label for="labels">Labels, comma separated</label>
+      <input id="labels" />
+      <p class="small">The label voice-created is always added by the backend.</p>
+
+      <div class="button-row">
+        <button id="createButton">Create GitHub issue</button>
+      </div>
+
+      <div class="status" id="createStatus"></div>
+    </section>
+  </main>
+
+  <script>
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordedBlob = null;
+
+    const languageCard = document.getElementById("languageCard");
+    const recordCard = document.getElementById("recordCard");
+    const previewCard = document.getElementById("previewCard");
+
+    const languageSelect = document.getElementById("language");
+    const continueButton = document.getElementById("continueButton");
+    const repoBox = document.getElementById("repoBox");
+    const assigneeSelect = document.getElementById("assignee");
+    const recordButton = document.getElementById("recordButton");
+    const stopButton = document.getElementById("stopButton");
+    const previewButton = document.getElementById("previewButton");
+    const recordingStatus = document.getElementById("recordingStatus");
+    const audioFileInput = document.getElementById("audioFile");
+
+    const transcriptField = document.getElementById("transcript");
+    const titleField = document.getElementById("title");
+    const bodyField = document.getElementById("body");
+    const labelsField = document.getElementById("labels");
+    const createButton = document.getElementById("createButton");
+    const createStatus = document.getElementById("createStatus");
+
+    function setStatus(element, message, type = "info") {
+      element.textContent = message;
+      element.classList.add("show");
+      element.classList.remove("error", "success");
+      if (type === "error") element.classList.add("error");
+      if (type === "success") element.classList.add("success");
+    }
+
+    function getSupportedMimeType() {
+      const candidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/ogg;codecs=opus"
+      ];
+
+      for (const type of candidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      }
+
+      return "";
+    }
+
+    async function loadConfig() {
+      try {
+        const response = await fetch("/api/config");
+        const config = await response.json();
+        if (config.target_repo_url) {
+          repoBox.innerHTML = `<a href="${config.target_repo_url}" target="_blank">${config.target_repo_url}</a>`;
+        } else {
+          repoBox.textContent = "Repository is not configured.";
+        }
+      } catch (error) {
+        repoBox.textContent = "Failed to load repository config.";
+      }
+    }
+
+    async function loadTeamMembers() {
+      try {
+        const response = await fetch("/api/team-members");
+        const members = await response.json();
+        assigneeSelect.innerHTML = "";
+
+        for (const member of members) {
+          const option = document.createElement("option");
+          option.value = member.github_login;
+          option.textContent = member.display_name;
+          assigneeSelect.appendChild(option);
+        }
+      } catch (error) {
+        assigneeSelect.innerHTML = `<option value="">Unassigned</option>`;
+      }
+    }
+
+    continueButton.onclick = async () => {
+      languageCard.classList.add("hidden");
+      recordCard.classList.remove("hidden");
+      await loadConfig();
+      await loadTeamMembers();
+    };
+
+    recordButton.onclick = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        setStatus(recordingStatus, "Recording is not supported in this browser. Use audio upload instead.", "error");
+        return;
+      }
+
+      try {
+        audioChunks = [];
+        recordedBlob = null;
+        audioFileInput.value = "";
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mimeType = getSupportedMimeType();
+        const options = mimeType ? { mimeType } : undefined;
+
+        mediaRecorder = new MediaRecorder(stream, options);
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const type = mimeType || "audio/webm";
+          recordedBlob = new Blob(audioChunks, { type });
+          previewButton.disabled = false;
+          recordButton.disabled = false;
+          stopButton.disabled = true;
+          setStatus(recordingStatus, "Recording ready. You can preview the issue now.");
+          stream.getTracks().forEach((track) => track.stop());
+        };
+
+        mediaRecorder.start();
+        recordButton.disabled = true;
+        stopButton.disabled = false;
+        previewButton.disabled = true;
+        setStatus(recordingStatus, "Recording...");
+      } catch (error) {
+        setStatus(recordingStatus, `Recording failed: ${error.message}`, "error");
+        recordButton.disabled = false;
+        stopButton.disabled = true;
+      }
+    };
+
+    stopButton.onclick = () => {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      }
+    };
+
+    audioFileInput.onchange = () => {
+      if (audioFileInput.files && audioFileInput.files[0]) {
+        recordedBlob = null;
+        previewButton.disabled = false;
+        setStatus(recordingStatus, "Audio file selected. You can preview the issue now.");
+      }
+    };
+
+    previewButton.onclick = async () => {
+      const selectedFile = audioFileInput.files && audioFileInput.files[0] ? audioFileInput.files[0] : null;
+      const audioSource = selectedFile || recordedBlob;
+
+      if (!audioSource) {
+        setStatus(recordingStatus, "Record or upload audio first.", "error");
+        return;
+      }
+
+      previewButton.disabled = true;
+      previewButton.textContent = "Creating preview...";
+      previewCard.classList.add("hidden");
+      createStatus.classList.remove("show", "error", "success");
+
+      const formData = new FormData();
+      formData.append("audio", audioSource, selectedFile ? selectedFile.name : "recording.webm");
+      formData.append("language", languageSelect.value);
+      formData.append("assignee", assigneeSelect.value);
+
+      try {
+        const response = await fetch("/api/preview-issue", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Preview failed.");
+        }
+
+        transcriptField.value = data.transcript || "";
+        titleField.value = data.issue.title || "";
+        bodyField.value = data.issue.body || "";
+        labelsField.value = (data.issue.labels || []).join(", ");
+
+        previewCard.classList.remove("hidden");
+        setStatus(recordingStatus, "Preview created. Review the issue before creating it.", "success");
+      } catch (error) {
+        setStatus(recordingStatus, error.message, "error");
+      } finally {
+        previewButton.disabled = false;
+        previewButton.textContent = "Preview issue";
+      }
+    };
+
+    createButton.onclick = async () => {
+      createButton.disabled = true;
+      createButton.textContent = "Creating issue...";
+      setStatus(createStatus, "Creating GitHub issue...");
+
+      const formData = new FormData();
+      formData.append("title", titleField.value);
+      formData.append("body", bodyField.value);
+      formData.append("labels", labelsField.value);
+      formData.append("assignee", assigneeSelect.value);
+
+      try {
+        const response = await fetch("/api/create-issue", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "GitHub issue creation failed.");
+        }
+
+        createStatus.innerHTML = `Issue created: <a href="${data.url}" target="_blank">${data.url}</a>`;
+        createStatus.classList.add("show", "success");
+        createStatus.classList.remove("error");
+      } catch (error) {
+        setStatus(createStatus, error.message, "error");
+      } finally {
+        createButton.disabled = false;
+        createButton.textContent = "Create GitHub issue";
+      }
+    };
+  </script>
+</body>
+</html>

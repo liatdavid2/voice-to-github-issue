@@ -1,0 +1,9 @@
+services:
+  voice-github-issue:
+    build:
+      context: .
+    container_name: voice-github-issue
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
