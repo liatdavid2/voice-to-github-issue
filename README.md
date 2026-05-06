@@ -19,19 +19,51 @@ The system uses one fixed GitHub repository from `.env`. There is no repository 
 5. User reviews and edits the issue.
 6. Backend creates the issue in the fixed GitHub repository.
 
-## Architecture
+## AI Agent Architecture
 
 ```text
-Browser UI
-   |
-   v
-FastAPI single container
-   |
-   |-- OpenAI audio transcription
-   |-- OpenAI issue parsing and English rewriting
-   |-- GitHub REST API issue creation
-   v
-Fixed GitHub repository from .env
+The system is implemented as a small LangGraph-based agent workflow.
+
+```text
++----------------------+
+|      User Voice      |
++----------------------+
+           |
+           v
++------------------------------+
+|   Voice Transcript Agent     |
+| - converts recorded speech   |
+|   into text                  |
++------------------------------+
+           |
+           v
++------------------------------+
+|      Issue Draft Agent       |
+| - generates English issue    |
+|   title and body             |
+| - detects issue labels       |
++------------------------------+
+           |
+           v
++------------------------------+
+|    Issue Validation Agent    |
+| - validates generated fields |
+| - normalizes labels          |
+| - adds voice-created label   |
++------------------------------+
+           |
+           v
++------------------------------+
+|   GitHub Issue API Agent     |
+| - calls the GitHub API       |
+| - creates the final issue    |
+| - returns the issue link     |
++------------------------------+
+           |
+           v
++----------------------+
+|   GitHub Repository  |
++----------------------+
 ```
 
 ## Project structure
