@@ -82,13 +82,12 @@ Rules:
 - Always write the title and body in English.
 - The title must be a short summary suitable for a GitHub issue title.
 - The title should be 5 to 12 words.
-- The body must be a direct English translation of what the user said.
-- Do not summarize the body.
-- Do not shorten the body.
-- Do not rewrite the body into generic issue text.
+- If source_language is "he", the body must be a direct English translation of what the user said.
+- If source_language is "en", the body must keep the user's original English wording as much as possible.
+- If source_language is "en", do not translate, summarize, shorten, or rewrite the body into generic issue text.
+- If source_language is "he", translate the full meaning into English without summarizing.
 - Do not add details that the user did not say.
 - Do not add generic text like "Please investigate" unless the user said it.
-- If the user spoke Hebrew, translate the full meaning into English.
 - Keep the user's wording and intent as close as possible.
 - Do not invent an assignee.
 - If the user says bug, באג, תקלה, problem, error, or not working, include "bug".
