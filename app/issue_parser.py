@@ -57,13 +57,13 @@ def _normalize_labels(labels: Any) -> list[str]:
     return sorted(set(normalized))
 
 
+
 def parse_transcript_to_issue(transcript: str, source_language: str) -> dict[str, Any]:
     text_model = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
 
     if not os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY") == "replace_me":
         raise IssueParserError("Missing or invalid OPENAI_API_KEY.")
 
-    language_name = "Hebrew" if source_language == "he" else "English"
 
     prompt = f"""
 You convert a spoken developer request into a clean GitHub issue.
@@ -73,7 +73,7 @@ The spoken request language is: {source_language}
 Return only valid JSON with this exact schema:
 {{
   "title": "short English issue title",
-  "body": "English issue body based directly on what the user said",
+  "body": "direct English translation of the user's spoken request",
   "labels": ["bug" or "enhancement" or "high-priority"],
   "assignee_name": "person name mentioned by the user, or empty string"
 }}
@@ -82,11 +82,14 @@ Rules:
 - Always write the title and body in English.
 - The title must be a short summary suitable for a GitHub issue title.
 - The title should be 5 to 12 words.
-- The body must be built from the user's spoken request.
-- If the user spoke Hebrew, translate the meaning into clear English.
-- Keep all important details from the spoken request in the body.
-- Do not invent details that the user did not say.
-- Do not add generic text like "Please investigate" unless the user asked for it.
+- The body must be a direct English translation of what the user said.
+- Do not summarize the body.
+- Do not shorten the body.
+- Do not rewrite the body into generic issue text.
+- Do not add details that the user did not say.
+- Do not add generic text like "Please investigate" unless the user said it.
+- If the user spoke Hebrew, translate the full meaning into English.
+- Keep the user's wording and intent as close as possible.
 - Do not invent an assignee.
 - If the user says bug, באג, תקלה, problem, error, or not working, include "bug".
 - If the user says feature, פיצ'ר, improvement, or add new capability, include "enhancement".
@@ -101,7 +104,7 @@ Hebrew transcript:
 Output:
 {{
   "title": "Save button does not work on profile screen",
-  "body": "The save button does not work on the profile screen.",
+  "body": "Open a bug about the save button not working on the profile screen and assign it to Liat.",
   "labels": ["bug"],
   "assignee_name": "ליאת"
 }}
@@ -112,7 +115,7 @@ Hebrew transcript:
 Output:
 {{
   "title": "Add date filter to tasks screen",
-  "body": "Add a date filter to the tasks screen.",
+  "body": "Open a feature to add filtering by date on the tasks screen.",
   "labels": ["enhancement"],
   "assignee_name": ""
 }}
