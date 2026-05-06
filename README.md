@@ -21,7 +21,6 @@ The system uses one fixed GitHub repository from `.env`. There is no repository 
 
 ## AI Agent Architecture
 
-```text
 The system is implemented as a small LangGraph-based agent workflow.
 
 ```text
