@@ -1,5 +1,11 @@
 # Voice to GitHub Issue
 
+## Demo Video
+
+This demo shows how the system converts Hebrew or English voice input into a structured English GitHub issue using a single Docker container.
+
+[![Watch the demo](images/video.png)](https://youtu.be/zaVKvmQmTLo)
+
 A single-container demo tool that turns Hebrew or English voice requests into English GitHub issues.
 
 The system uses one fixed GitHub repository from `.env`. There is no repository selector in the UI.
