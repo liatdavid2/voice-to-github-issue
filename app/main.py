@@ -9,7 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 
 from github_client import GitHubApiError, GitHubConfigError, create_github_issue
-from issue_parser import IssueParserError, parse_transcript_to_issue
+from issue_parser import IssueParserError
+from issue_graph import run_create_graph, run_preview_graph
 from team_config import TEAM_MEMBERS
 
 load_dotenv()
@@ -59,7 +60,7 @@ async def preview_issue(
     transcript = await transcribe_audio(audio=audio, language=language)
 
     try:
-        issue = parse_transcript_to_issue(transcript=transcript, source_language=language)
+        issue = run_preview_graph(transcript=transcript, source_language=language)
     except IssueParserError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
@@ -88,7 +89,7 @@ async def create_issue(
     assignees = [assignee] if assignee else []
 
     try:
-        created = create_github_issue(
+        created = run_create_graph(
             title=title,
             body=body,
             labels=label_list,
