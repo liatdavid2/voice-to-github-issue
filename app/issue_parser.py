@@ -68,30 +68,58 @@ def parse_transcript_to_issue(transcript: str, source_language: str) -> dict[str
     prompt = f"""
 You convert a spoken developer request into a clean GitHub issue.
 
-The spoken request language is: {language_name}
+The spoken request language is: {source_language}
 
 Return only valid JSON with this exact schema:
 {{
   "title": "short English issue title",
-  "body": "professional English issue body",
-  "labels": ["bug"]
+  "body": "English issue body based directly on what the user said",
+  "labels": ["bug" or "enhancement" or "high-priority"],
+  "assignee_name": "person name mentioned by the user, or empty string"
 }}
 
 Rules:
-- Always write the issue title and body in English.
-- Do not invent technical details that were not mentioned.
-- If it is a bug, include label "bug".
-- If it is a feature request, include label "enhancement".
-- If it is documentation-related, include label "documentation".
-- If the request is unclear or asks a question, include label "question".
-- If urgent, production, blocked, critical, or high priority is mentioned, include label "high-priority".
-- Keep the title short and specific.
-- Keep the body practical and useful for an engineer.
-- Do not include markdown code fences.
+- Always write the title and body in English.
+- The title must be a short summary suitable for a GitHub issue title.
+- The title should be 5 to 12 words.
+- The body must be built from the user's spoken request.
+- If the user spoke Hebrew, translate the meaning into clear English.
+- Keep all important details from the spoken request in the body.
+- Do not invent details that the user did not say.
+- Do not add generic text like "Please investigate" unless the user asked for it.
+- Do not invent an assignee.
+- If the user says bug, באג, תקלה, problem, error, or not working, include "bug".
+- If the user says feature, פיצ'ר, improvement, or add new capability, include "enhancement".
+- If the user says urgent, critical, דחוף, קריטי, production, or blocking, include "high-priority".
+- If the user says assign to someone, extract the person name into assignee_name.
+
+Examples:
+
+Hebrew transcript:
+פתחי באג על זה שכפתור שמירה לא עובד במסך פרופיל ותשייכי לליאת
+
+Output:
+{{
+  "title": "Save button does not work on profile screen",
+  "body": "The save button does not work on the profile screen.",
+  "labels": ["bug"],
+  "assignee_name": "ליאת"
+}}
+
+Hebrew transcript:
+תפתחי פיצ'ר להוסיף סינון לפי תאריך במסך משימות
+
+Output:
+{{
+  "title": "Add date filter to tasks screen",
+  "body": "Add a date filter to the tasks screen.",
+  "labels": ["enhancement"],
+  "assignee_name": ""
+}}
 
 Transcript:
 {transcript}
-""".strip()
+"""
 
     response = client.responses.create(
         model=text_model,
