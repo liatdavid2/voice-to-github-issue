@@ -85,8 +85,8 @@
   <div class="card">
     <h1>Voice to GitHub Issue</h1>
     <p>
-      Select Hebrew or English, record a short request, check the transcript and English issue,
-      then create the GitHub issue only when the result looks correct.
+      Select Hebrew or English, click once to start recording, click again to stop.
+      The system will automatically transcribe and translate the request into an English GitHub issue.
     </p>
 
     <div class="row">
@@ -99,14 +99,12 @@
       </div>
 
       <div>
-        <label>Assignee</label>
+        <label>Manual assignee override</label>
         <select id="assignee"></select>
       </div>
     </div>
 
     <button id="recordButton">Start recording</button>
-    <button id="stopButton" class="secondary" disabled>Stop recording</button>
-    <button id="previewButton" disabled>Transcribe and translate</button>
 
     <div class="status" id="recordingStatus">Not recording</div>
     <div class="status" id="createStatus"></div>
@@ -127,6 +125,9 @@
     <label>Labels</label>
     <input id="labelsField" readonly />
 
+    <label>Detected assignee</label>
+    <input id="detectedAssigneeField" readonly />
+
     <button id="createButton">Create GitHub Issue</button>
     <button id="recordAgainButton" class="secondary">Record again</button>
 
@@ -138,10 +139,10 @@
   let audioChunks = [];
   let recordedBlob = null;
   let currentIssue = null;
+  let currentStream = null;
+  let isRecording = false;
 
   const recordButton = document.getElementById("recordButton");
-  const stopButton = document.getElementById("stopButton");
-  const previewButton = document.getElementById("previewButton");
   const createButton = document.getElementById("createButton");
   const recordAgainButton = document.getElementById("recordAgainButton");
 
@@ -157,18 +158,23 @@
   const titleField = document.getElementById("titleField");
   const bodyField = document.getElementById("bodyField");
   const labelsField = document.getElementById("labelsField");
+  const detectedAssigneeField = document.getElementById("detectedAssigneeField");
 
   async function loadTeamMembers() {
-    const response = await fetch("/api/team-members");
-    const members = await response.json();
+    try {
+      const response = await fetch("/api/team-members");
+      const members = await response.json();
 
-    assigneeSelect.innerHTML = "";
+      assigneeSelect.innerHTML = "";
 
-    for (const member of members) {
-      const option = document.createElement("option");
-      option.value = member.github_login;
-      option.textContent = member.display_name;
-      assigneeSelect.appendChild(option);
+      for (const member of members) {
+        const option = document.createElement("option");
+        option.value = member.github_login;
+        option.textContent = member.display_name;
+        assigneeSelect.appendChild(option);
+      }
+    } catch (error) {
+      assigneeSelect.innerHTML = '<option value="">Unassigned</option>';
     }
   }
 
@@ -181,57 +187,96 @@
     titleField.value = "";
     bodyField.value = "";
     labelsField.value = "";
+    detectedAssigneeField.value = "";
     createStatus.textContent = "";
   }
 
+  function getSupportedMimeType() {
+    const types = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4"
+    ];
+
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+
+    return "";
+  }
+
   recordButton.onclick = async () => {
+    if (isRecording && mediaRecorder && mediaRecorder.state === "recording") {
+      recordButton.disabled = true;
+      recordButton.textContent = "Transcribing and translating...";
+      recordingStatus.textContent = "Recording stopped.";
+      mediaRecorder.stop();
+      return;
+    }
+
+    await startRecording();
+  };
+
+  async function startRecording() {
     audioChunks = [];
     recordedBlob = null;
     resetPreview();
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    try {
+      currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    mediaRecorder = new MediaRecorder(stream, {
-      mimeType: "audio/webm"
-    });
+      const mimeType = getSupportedMimeType();
+      const options = mimeType ? { mimeType } : {};
 
-    mediaRecorder.ondataavailable = event => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
-    };
+      mediaRecorder = new MediaRecorder(currentStream, options);
 
-    mediaRecorder.onstop = () => {
-      recordedBlob = new Blob(audioChunks, { type: "audio/webm" });
-      previewButton.disabled = false;
-      recordingStatus.textContent = "Recording ready. Click Transcribe and translate.";
-      stream.getTracks().forEach(track => track.stop());
-    };
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
 
-    mediaRecorder.start();
+      mediaRecorder.onstop = async () => {
+        const blobType = mediaRecorder.mimeType || "audio/webm";
+        recordedBlob = new Blob(audioChunks, { type: blobType });
 
-    recordButton.disabled = true;
-    stopButton.disabled = false;
-    previewButton.disabled = true;
-    recordingStatus.textContent = "Recording";
-  };
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
 
-  stopButton.onclick = () => {
-    if (mediaRecorder) {
-      mediaRecorder.stop();
+        isRecording = false;
+        recordingStatus.textContent = "Transcribing and translating...";
+
+        await transcribeAndTranslate();
+      };
+
+      mediaRecorder.start();
+
+      isRecording = true;
+      recordButton.disabled = false;
+      recordButton.textContent = "Stop recording";
+      recordingStatus.textContent = "Recording. Click again to stop.";
+
+    } catch (error) {
+      isRecording = false;
+      recordButton.disabled = false;
+      recordButton.textContent = "Start recording";
+      recordingStatus.textContent = "Microphone access failed.";
+      resultBox.style.display = "block";
+      resultBox.textContent = error.message;
     }
+  }
 
-    recordButton.disabled = false;
-    stopButton.disabled = true;
-  };
-
-  previewButton.onclick = async () => {
+  async function transcribeAndTranslate() {
     if (!recordedBlob) {
       alert("Record audio first.");
+      recordButton.disabled = false;
+      recordButton.textContent = "Start recording";
       return;
     }
 
-    previewButton.disabled = true;
     recordButton.disabled = true;
     createStatus.textContent = "Transcribing and translating...";
     resetPreview();
@@ -262,6 +307,11 @@
         ? currentIssue.labels.join(", ")
         : "";
 
+      detectedAssigneeField.value =
+        currentIssue.assignees && currentIssue.assignees.length > 0
+          ? currentIssue.assignees[0]
+          : "Unassigned";
+
       previewCard.style.display = "block";
       createStatus.textContent = "Check the text. If it is not correct, record again.";
 
@@ -270,14 +320,14 @@
       resultBox.style.display = "block";
       resultBox.textContent = error.message;
     } finally {
-      previewButton.disabled = false;
       recordButton.disabled = false;
+      recordButton.textContent = "Start recording";
     }
-  };
+  }
 
   createButton.onclick = async () => {
     if (!currentIssue) {
-      alert("Transcribe and translate first.");
+      alert("Record first.");
       return;
     }
 
@@ -288,11 +338,19 @@
     resultBox.textContent = "";
 
     try {
+      const detectedAssignee =
+        assigneeSelect.value ||
+        (
+          currentIssue.assignees && currentIssue.assignees.length > 0
+            ? currentIssue.assignees[0]
+            : ""
+        );
+
       const formData = new FormData();
       formData.append("title", currentIssue.title);
       formData.append("body", currentIssue.body);
       formData.append("labels", currentIssue.labels.join(","));
-      formData.append("assignee", assigneeSelect.value);
+      formData.append("assignee", detectedAssignee);
 
       const response = await fetch("/api/create-issue", {
         method: "POST",
@@ -325,8 +383,10 @@
   recordAgainButton.onclick = () => {
     audioChunks = [];
     recordedBlob = null;
-    previewButton.disabled = true;
+    currentIssue = null;
     resetPreview();
+    recordButton.disabled = false;
+    recordButton.textContent = "Start recording";
     recordingStatus.textContent = "Not recording. Click Start recording.";
   };
 
